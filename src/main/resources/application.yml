@@ -1,0 +1,27 @@
+spring:
+  profiles:
+    active: "override"
+    main:
+      banner-mode: "off"
+  api-docs:
+    enabled: true
+    path: /api-docs
+    title: My API Documentation
+    description: Description of my API
+    version: 1.0
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+
+dropbox:
+  api:
+    access-token: "Insert your Access Token here."
+    endpoints:
+      baseurl: https://content.dropboxapi.com
+      upload: /2/files/upload
+      download: /2/files/download
+      thumbnail: /2/files/get_thumbnail_v2
+      thumbnail_batch: /2/files/get_thumbnail_batch
+      delete: https://api.dropboxapi.com/2/files/delete_v2
+

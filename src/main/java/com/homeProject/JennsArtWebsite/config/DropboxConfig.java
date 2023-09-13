@@ -10,6 +10,8 @@ public class DropboxConfig {
 
     @Value("${dropbox.api.access-token}")
     private String dropboxAccessToken;
+    @Value("${dropbox.api.endpoints.baseurl}")
+    private String baseurl;
     @Value("${dropbox.api.endpoints.upload}")
     private String uploadEndpoint;
     @Value("${dropbox.api.endpoints.download}")
