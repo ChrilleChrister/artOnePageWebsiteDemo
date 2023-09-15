@@ -2,6 +2,7 @@ package com.homeProject.JennsArtWebsite.controller;
 
 
 import com.homeProject.JennsArtWebsite.service.DropboxService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +13,10 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping(path = "api/v1/dropbox")
-public record DropboxController(DropboxService dropboxService) {
+@RequiredArgsConstructor
+public class DropboxController {
+
+    private final DropboxService dropboxService;
 
     @PostMapping("/upload")
     public Mono<ResponseEntity<String>> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
