@@ -23,7 +23,13 @@ public class DropboxService {
     private final WebClientConfig webClientConfig;
 
     public Mono<Void> uploadFileToDropbox(final MultipartFile file) throws IOException {
-        String dropboxApiArgs = "{\"autorename\":false,\"mode\":\"add\",\"mute\":false,\"path\":\"/" + file.getOriginalFilename() + "\",\"strict_conflict\":false}";
+        String dropboxApiArgs = "{"
+                + "\"autorename\": false,"
+                + "\"mode\": \"add\","
+                + "\"mute\": false,"
+                + "\"path\": \"/" + file.getOriginalFilename() + "\","
+                + "\"strict_conflict\": false"
+                + "}";
         WebClient webClient = setupWebclient();
 
         return webClient.post()
@@ -47,7 +53,16 @@ public class DropboxService {
     }
 
     public Mono<byte[]> getThumbnailFromDropbox(final String path) {
-        String dropboxApiArgs = "{\"format\":\"jpeg\",\"mode\":\"strict\",\"quality\":\"quality_80\",\"resource\":{\".tag\":\"path\",\"path\":\"" + path + "\"},\"size\":\"w64h64\"}";
+        String dropboxApiArgs = "{"
+                + "\"format\": \"jpeg\","
+                + "\"mode\": \"strict\","
+                + "\"quality\": \"quality_80\","
+                + "\"resource\": {"
+                + "\".tag\": \"path\","
+                + "\"path\": \"" + path + "\""
+                + "},"
+                + "\"size\": \"w64h64\""
+                + "}";
         WebClient webClient = setupWebclient();
         return webClient.post()
                 .uri(dropboxConfig.getThumbnailEndpoint())
