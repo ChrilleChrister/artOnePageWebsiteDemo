@@ -1,17 +1,18 @@
 package com.homeProject.JennsArtWebsite.service;
 
-
-import com.homeProject.JennsArtWebsite.config.DropboxConfig;
-import com.homeProject.JennsArtWebsite.config.WebClientConfig;
+import com.dropbox.core.DbxException;
+import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.files.FileMetadata;
+import com.homeProject.JennsArtWebsite.client.DropboxClient;
+import com.homeProject.JennsArtWebsite.entity.ImageMetadata;
+import com.homeProject.JennsArtWebsite.mapper.ImageMetadataMapper;
+import com.homeProject.JennsArtWebsite.repository.ImageMetadataRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 
@@ -19,80 +20,65 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class DropboxService {
 
-    private final DropboxConfig dropboxConfig;
-    private final WebClientConfig webClientConfig;
+    private final DropboxClient dropboxClient;
+    private final ImageMetadataMapper imageMetadataMapper;
+    private final ImageMetadataRepository imageMetadataRepository;
 
-    public Mono<Void> uploadFileToDropbox(final MultipartFile file) throws IOException {
-        String dropboxApiArgs = "{"
-                + "\"autorename\": false,"
-                + "\"mode\": \"add\","
-                + "\"mute\": false,"
-                + "\"path\": \"/" + file.getOriginalFilename() + "\","
-                + "\"strict_conflict\": false"
-                + "}";
-        WebClient webClient = setupWebclient();
 
-        return webClient.post()
-                .uri(dropboxConfig.getUploadEndpoint())
-                .headers(httpHeaders -> httpHeaders.addAll(createHeaders(dropboxApiArgs)))
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE)
-                .body(BodyInserters.fromResource(new ByteArrayResource(file.getBytes())))
-                .retrieve()
-                .bodyToMono(Void.class);
+    public void downloadFile(final String filePath) throws IOException, DbxException {
+        DbxClientV2 client = dropboxClient.getDropboxClient();
+        try {
+            client.files().downloadBuilder(filePath)
+                    .download(new FileOutputStream(getUserDownloadPath(filePath)));
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new IOException("File download failed due to IO error" + e.getMessage(), e);
+        } catch (DbxException e) {
+            e.printStackTrace();
+            throw new DbxException("File download failed due to Dropbox API error: " + e.getMessage(), e);
+        }
+    }
+
+    public void uploadFile(final MultipartFile file, final String path) throws IOException, DbxException {
+        DbxClientV2 client = dropboxClient.getDropboxClient();
+        try {
+            client.files()
+                    .uploadBuilder(path)
+                    .uploadAndFinish(file.getInputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new IOException("File upload failed due to IO error: " + e.getMessage(), e);
+        } catch (DbxException e) {
+            e.printStackTrace();
+            throw new DbxException("File upload failed due to Dropbox API error: " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteFile(final String path) throws DbxException {
+        DbxClientV2 client = dropboxClient.getDropboxClient();
+        try {
+            client.files().deleteV2(path);
+        } catch (DbxException e) {
+            e.printStackTrace();
+            throw new DbxException("File deletion failed due to Dropbox API error: " + e.getMessage(), e);
+        }
+    }
+
+    public String getImageUrl(Long id) {
+        return imageMetadataRepository.selectImageById(id)
+                .map(ImageMetadata::getImageUrl)
+                .orElseThrow(() -> new RuntimeException(
+                        "customer with id [%s] not found".formatted(id)
+                ));
     }
 
 
-    public Mono<byte[]> downloadFileFromDropbox(final String path) {
-        String dropBoxApiArgs = "{\"path\":\"" + path + "\"}";
-        WebClient webClient = setupWebclient();
-        return webClient.post()
-                .uri(dropboxConfig.getDownloadEndpoint())
-                .headers(httpHeaders -> httpHeaders.addAll(createHeaders(dropBoxApiArgs)))
-                .retrieve()
-                .bodyToMono(byte[].class);
-    }
-
-    public Mono<byte[]> getThumbnailFromDropbox(final String path) {
-        String dropboxApiArgs = "{"
-                + "\"format\": \"jpeg\","
-                + "\"mode\": \"strict\","
-                + "\"quality\": \"quality_80\","
-                + "\"resource\": {"
-                + "\".tag\": \"path\","
-                + "\"path\": \"" + path + "\""
-                + "},"
-                + "\"size\": \"w64h64\""
-                + "}";
-        WebClient webClient = setupWebclient();
-        return webClient.post()
-                .uri(dropboxConfig.getThumbnailEndpoint())
-                .headers(httpHeaders -> httpHeaders.addAll(createHeaders(dropboxApiArgs)))
-                .retrieve()
-                .bodyToMono(byte[].class);
-    }
-
-    public Mono<String> deleteFileFromDropbox(final String path) {
-        String requestBody = "{\"path\":\"" + path + "\"}";
-        WebClient webClient = WebClient.builder().build();
-
-        return webClient.post()
-                .uri(dropboxConfig.getDeleteEndpoint())
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + dropboxConfig.getDropboxAccessToken())
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .body(BodyInserters.fromValue(requestBody))
-                .retrieve()
-                .bodyToMono(String.class);
-    }
-
-    private WebClient setupWebclient() {
-        return webClientConfig.webClientBuilder().baseUrl(dropboxConfig.getBaseurl())
-                .build();
-    }
-
-    private HttpHeaders createHeaders(final String dropBoxApiArgs) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + dropboxConfig.getDropboxAccessToken());
-        headers.set("Dropbox-API-Arg", dropBoxApiArgs);
-        return headers;
+    private String getUserDownloadPath(final String path) {
+        String defaultLocalDirectory = "Downloads";
+        String userHome = System.getProperty("user.home");
+        String fileName = new File(path).getName();
+        return userHome + File.separator + defaultLocalDirectory + File.separator + fileName;
     }
 }
+
+
